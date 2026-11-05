@@ -7,8 +7,12 @@ import {
   TouchableOpacity,
   Text,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FavoritesProvider, useFavorites } from './src/context/FavoritesContext';
+import { LoginScreen } from './src/screens/LoginScreen';
+import { SignupScreen } from './src/screens/SignupScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { PantryScreen } from './src/screens/PantryScreen';
 import { RecipeListScreen } from './src/screens/RecipeListScreen';
@@ -18,7 +22,10 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AboutScreen } from './src/screens/AboutScreen';
 import { RecipeDetailModal } from './src/components/RecipeDetailModal';
 
-function MainApp() {
+function MainAppContent() {
+  const { user, isGuest, loading } = useAuth();
+  const [authView, setAuthView] = useState('login'); // 'login' | 'signup'
+
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'pantry' | 'recipes' | 'favorites' | 'profile' | 'budget'
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [aboutVisible, setAboutVisible] = useState(false);
@@ -45,6 +52,24 @@ function MainApp() {
   const handleCloseRecipe = () => {
     setSelectedRecipe(null);
   };
+
+  // Loading state while checking persistent user session
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+        <Text style={styles.loadingText}>Loading LutoTa...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // If user is not logged in and has not chosen to continue as guest: show Auth screens
+  if (!user && !isGuest) {
+    if (authView === 'signup') {
+      return <SignupScreen onNavigateLogin={() => setAuthView('login')} />;
+    }
+    return <LoginScreen onNavigateSignup={() => setAuthView('signup')} />;
+  }
 
   return (
     <SafeAreaView style={styles.safeContainer}>
@@ -87,7 +112,10 @@ function MainApp() {
         )}
 
         {activeTab === 'profile' && (
-          <ProfileScreen onOpenAbout={() => setAboutVisible(true)} />
+          <ProfileScreen
+            onOpenAbout={() => setAboutVisible(true)}
+            onPromptLogin={() => setAuthView('login')}
+          />
         )}
       </View>
 
@@ -233,9 +261,11 @@ function MainApp() {
 
 export default function App() {
   return (
-    <FavoritesProvider>
-      <MainApp />
-    </FavoritesProvider>
+    <AuthProvider>
+      <FavoritesProvider>
+        <MainAppContent />
+      </FavoritesProvider>
+    </AuthProvider>
   );
 }
 
@@ -243,6 +273,18 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: '#FAFAF9',
+  },
+  centerContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAF9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#78716C',
+    fontWeight: '600',
   },
   mainContent: {
     flex: 1,
