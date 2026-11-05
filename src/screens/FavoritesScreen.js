@@ -5,52 +5,23 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-  Alert,
+  Image,
 } from 'react-native';
 import { useFavorites } from '../context/FavoritesContext';
 import { RECIPES } from '../data/recipes';
-import { RecipeCard } from '../components/RecipeCard';
 
 export const FavoritesScreen = ({ onSelectRecipe, onExplore }) => {
-  const { favorites, clearAllFavorites } = useFavorites();
-  const [search, setSearch] = useState('');
+  const { favorites, toggleFavorite } = useFavorites();
+  const [sortBy, setSortBy] = useState('NEWEST');
 
   const favoriteRecipes = useMemo(() => {
     const set = new Set(favorites);
     let list = RECIPES.filter((r) => set.has(r.id));
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.englishName.toLowerCase().includes(q)
-      );
+    if (sortBy === 'PRICE_LOW') {
+      list.sort((a, b) => a.totalCost - b.totalCost);
     }
     return list;
-  }, [favorites, search]);
-
-  const handleConfirmClear = () => {
-    // Web safe confirm
-    if (typeof window !== 'undefined' && window.confirm) {
-      if (window.confirm('Clear all your saved favorite recipes?')) {
-        clearAllFavorites();
-      }
-    } else {
-      Alert.alert(
-        'Clear Favorites',
-        'Are you sure you want to remove all saved recipes?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Clear All',
-            style: 'destructive',
-            onPress: clearAllFavorites,
-          },
-        ]
-      );
-    }
-  };
+  }, [favorites, sortBy]);
 
   return (
     <ScrollView
@@ -58,74 +29,88 @@ export const FavoritesScreen = ({ onSelectRecipe, onExplore }) => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header Banner */}
-      <View style={styles.banner}>
-        <View style={styles.bannerIconBox}>
-          <Text style={styles.bannerIcon}>❤️</Text>
-        </View>
+      {/* Orange Banner Header matching Figma Screen 05 */}
+      <View style={styles.orangeHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.bannerTitle}>My Saved Favorites</Text>
-          <Text style={styles.bannerSubtitle}>
-            Offline-ready recipes bookmarked on your device
+          <Text style={styles.headerTitle}>My Favorites</Text>
+          <Text style={styles.headerSubtitle}>
+            Your saved recipes for easy access
           </Text>
         </View>
-        {favorites.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearBtn}
-            onPress={handleConfirmClear}
-          >
-            <Text style={styles.clearBtnText}>Clear All</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerBadge}>
+          <Text style={styles.headerBadgeIcon}>👨‍🍳</Text>
+        </View>
       </View>
 
-      {/* Search within favorites if multiple */}
-      {favorites.length > 3 && (
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search saved recipes..."
-            placeholderTextColor="#94A3B8"
-            value={search}
-            onChangeText={setSearch}
-          />
+      {/* Subheader: Saved Count & Sort Selector */}
+      <View style={styles.subHeaderRow}>
+        <Text style={styles.savedCountText}>
+          {favorites.length} saved {favorites.length === 1 ? 'recipe' : 'recipes'}
+        </Text>
+        <TouchableOpacity
+          style={styles.sortBtn}
+          onPress={() =>
+            setSortBy(sortBy === 'NEWEST' ? 'PRICE_LOW' : 'NEWEST')
+          }
+        >
+          <Text style={styles.sortBtnText}>
+            Sort by: {sortBy === 'NEWEST' ? 'Newest ▾' : 'Lowest ₱ ▾'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Favorites List */}
+      {favoriteRecipes.length > 0 ? (
+        <View style={styles.listContainer}>
+          {favoriteRecipes.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.recipeRow}
+              onPress={() => onSelectRecipe(item)}
+              activeOpacity={0.85}
+            >
+              <Image
+                source={{ uri: item.image }}
+                style={styles.thumbnail}
+                resizeMode="cover"
+              />
+
+              <View style={styles.infoCol}>
+                <Text style={styles.recipeTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={styles.recipePrice}>₱{item.totalCost}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.heartBtn}
+                onPress={() => toggleFavorite(item.id)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.heartIcon}>❤️</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        /* Empty State matching Figma screenshot */
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyHeartCircle}>
+            <Text style={styles.emptyHeartIcon}>🤍</Text>
+          </View>
+          <Text style={styles.emptyTitle}>No favorites yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Save recipes you love and they'll appear here!
+          </Text>
+          <TouchableOpacity
+            style={styles.browseBtn}
+            onPress={onExplore}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.browseBtnText}>Browse Recipes</Text>
+          </TouchableOpacity>
         </View>
       )}
-
-      {/* List of saved recipes */}
-      <View style={styles.listContainer}>
-        {favoriteRecipes.map((r) => (
-          <RecipeCard
-            key={r.id}
-            recipe={r}
-            onPress={onSelectRecipe}
-          />
-        ))}
-
-        {favorites.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🔖</Text>
-            <Text style={styles.emptyTitle}>No Favorite Recipes Yet</Text>
-            <Text style={styles.emptySub}>
-              Whenever you find a budget dish you like, tap the heart icon to save it here for fast offline access.
-            </Text>
-            <TouchableOpacity
-              style={styles.exploreBtn}
-              onPress={onExplore}
-            >
-              <Text style={styles.exploreBtnText}>Browse Budget Recipes →</Text>
-            </TouchableOpacity>
-          </View>
-        ) : favoriteRecipes.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🔍</Text>
-            <Text style={styles.emptyTitle}>No results in your favorites</Text>
-            <Text style={styles.emptySub}>
-              Try searching with another word.
-            </Text>
-          </View>
-        ) : null}
-      </View>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -135,110 +120,145 @@ export const FavoritesScreen = ({ onSelectRecipe, onExplore }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFAF9',
   },
   content: {
     paddingBottom: 24,
   },
-  banner: {
+  orangeHeader: {
+    backgroundColor: '#FF6B00',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
-    padding: 14,
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FECDD3',
+    justifyContent: 'space-between',
   },
-  bannerIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFE4E6',
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#FFEDD5',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  headerBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  bannerIcon: {
-    fontSize: 20,
+  headerBadgeIcon: {
+    fontSize: 22,
   },
-  bannerTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#9F1239',
+  subHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  bannerSubtitle: {
+  savedCountText: {
     fontSize: 12,
-    color: '#BE123C',
-    marginTop: 2,
-  },
-  clearBtn: {
-    backgroundColor: '#FFE4E6',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#FECDD3',
-  },
-  clearBtnText: {
-    fontSize: 11,
     fontWeight: '700',
-    color: '#9F1239',
+    color: '#78716C',
   },
-  searchContainer: {
-    marginHorizontal: 16,
-    marginTop: 12,
+  sortBtn: {
+    paddingVertical: 4,
   },
-  searchInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#0F172A',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  sortBtnText: {
+    fontSize: 12,
+    color: '#FF6B00',
+    fontWeight: '700',
   },
   listContainer: {
-    marginTop: 12,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  recipeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E7E5E4',
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: '#F5F5F4',
+    marginRight: 12,
+  },
+  infoCol: {
+    flex: 1,
+  },
+  recipeTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1C1917',
+  },
+  recipePrice: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FF6B00',
+    marginTop: 4,
+  },
+  heartBtn: {
+    padding: 8,
+  },
+  heartIcon: {
+    fontSize: 18,
   },
   emptyContainer: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 20,
-    padding: 28,
+    marginTop: 24,
+    padding: 30,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E7E5E4',
   },
-  emptyEmoji: {
-    fontSize: 42,
+  emptyHeartCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 10,
+  },
+  emptyHeartIcon: {
+    fontSize: 24,
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#334155',
+    fontWeight: '800',
+    color: '#1C1917',
   },
-  emptySub: {
-    fontSize: 13,
-    color: '#64748B',
+  emptySubtitle: {
+    fontSize: 12,
+    color: '#78716C',
     textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
+    marginTop: 4,
+    marginBottom: 16,
   },
-  exploreBtn: {
-    marginTop: 16,
-    backgroundColor: '#EA580C',
-    paddingHorizontal: 16,
+  browseBtn: {
+    backgroundColor: '#FF6B00',
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
   },
-  exploreBtnText: {
+  browseBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
   },
 });

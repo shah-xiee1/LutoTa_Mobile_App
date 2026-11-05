@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Image,
+  Share,
 } from 'react-native';
 import { useFavorites } from '../context/FavoritesContext';
 
@@ -21,15 +23,26 @@ export const RecipeDetailModal = ({
   const { isFavorite, toggleFavorite } = useFavorites();
   const favorited = isFavorite(recipe.id);
 
-  // Calculate missing vs owned ingredients
-  const userIngredientSet = new Set(userSelectedIngredients);
-  const totalCost = recipe.totalCost;
-  const missingIngredients = recipe.ingredients.filter(
-    (ing) => !userIngredientSet.has(ing.id)
-  );
-  const ownedIngredients = recipe.ingredients.filter((ing) =>
-    userIngredientSet.has(ing.id)
-  );
+  // Checked state for ingredients
+  const [checkedItems, setCheckedItems] = useState({});
+  const [cookingMode, setCookingMode] = useState(false);
+
+  const toggleCheck = (idx) => {
+    setCheckedItems((prev) => ({
+      ...prev,
+      [idx]: !prev[idx],
+    }));
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out this budget student recipe on LutoTa: ${recipe.title} (Est. ₱${recipe.totalCost})!`,
+      });
+    } catch (e) {
+      // ignore
+    }
+  };
 
   return (
     <Modal
@@ -38,26 +51,38 @@ export const RecipeDetailModal = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.safeContainer}>
         {/* Top Navbar */}
         <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.closeBtn}
+            style={styles.navActionBtn}
             onPress={onClose}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.closeIcon}>✕</Text>
+            <Text style={styles.navActionIcon}>←</Text>
           </TouchableOpacity>
+
           <Text style={styles.topBarTitle} numberOfLines={1}>
             {recipe.title}
           </Text>
-          <TouchableOpacity
-            style={[styles.favBtn, favorited && styles.favBtnActive]}
-            onPress={() => toggleFavorite(recipe.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.favIcon}>{favorited ? '❤️' : '🤍'}</Text>
-          </TouchableOpacity>
+
+          <View style={styles.topRightActions}>
+            <TouchableOpacity
+              style={styles.navActionBtn}
+              onPress={() => toggleFavorite(recipe.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.navActionIcon}>{favorited ? '❤️' : '🤍'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.navActionBtn}
+              onPress={handleShare}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.navActionIcon}>🔗</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -65,164 +90,143 @@ export const RecipeDetailModal = ({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Hero */}
-          <View style={styles.heroSection}>
-            <View style={styles.emojiCircle}>
-              <Text style={styles.heroEmoji}>{recipe.emoji || '🍲'}</Text>
-            </View>
+          {/* Big Dish Photo */}
+          <View style={styles.imageBannerBox}>
+            <Image
+              source={{ uri: recipe.image }}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
+          </View>
+
+          {/* Title & English Subtitle */}
+          <View style={styles.titleContainer}>
             <Text style={styles.dishTitle}>{recipe.title}</Text>
             <Text style={styles.dishEnglish}>{recipe.englishName}</Text>
-            <Text style={styles.description}>{recipe.description}</Text>
           </View>
 
-          {/* Quick Metrics Grid */}
-          <View style={styles.metricsGrid}>
-            <View style={[styles.metricCard, { backgroundColor: '#FFF7ED' }]}>
-              <Text style={styles.metricLabel}>Total Cost</Text>
-              <Text style={[styles.metricValue, { color: '#EA580C' }]}>
-                ₱{totalCost}
+          {/* Badges Row matching Figma: ₱65 est. per serving • 25 mins • Easy • 1 pot */}
+          <View style={styles.badgesRow}>
+            <View style={styles.orangePriceBadge}>
+              <Text style={styles.orangePriceText}>
+                ₱{recipe.costPerServing.toFixed(0)} est. per serving
               </Text>
-              <Text style={styles.metricSub}>estimated</Text>
             </View>
-
-            <View style={[styles.metricCard, { backgroundColor: '#F0FDF4' }]}>
-              <Text style={styles.metricLabel}>Per Serving</Text>
-              <Text style={[styles.metricValue, { color: '#16A34A' }]}>
-                ₱{recipe.costPerServing.toFixed(0)}
-              </Text>
-              <Text style={styles.metricSub}>{recipe.servings} servings</Text>
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>⏱️ {recipe.prepTime} mins</Text>
             </View>
-
-            <View style={[styles.metricCard, { backgroundColor: '#EFF6FF' }]}>
-              <Text style={styles.metricLabel}>Prep Time</Text>
-              <Text style={[styles.metricValue, { color: '#2563EB' }]}>
-                {recipe.prepTime}m
-              </Text>
-              <Text style={styles.metricSub}>quick dorm cook</Text>
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>✨ {recipe.difficulty}</Text>
             </View>
-
-            <View style={[styles.metricCard, { backgroundColor: '#FAF5FF' }]}>
-              <Text style={styles.metricLabel}>Cookware</Text>
-              <Text
-                style={[styles.metricValueSmall, { color: '#7E22CE' }]}
-                numberOfLines={2}
-              >
-                {recipe.cookware}
-              </Text>
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>🍳 {recipe.cookware}</Text>
             </View>
           </View>
 
-          {/* Dorm Student Hack / Tip Banner */}
-          {recipe.dormTip && (
-            <View style={styles.dormTipBox}>
-              <View style={styles.dormTipHeader}>
-                <Text style={styles.dormTipIcon}>💡</Text>
-                <Text style={styles.dormTipTitle}>Dorm Cooking Hack</Text>
-              </View>
-              <Text style={styles.dormTipText}>{recipe.dormTip}</Text>
+          {/* Dorm Tip Box */}
+          {recipe.dormTip ? (
+            <View style={styles.tipBox}>
+              <Text style={styles.tipTitle}>💡 Dorm Cooking Hack</Text>
+              <Text style={styles.tipBody}>{recipe.dormTip}</Text>
             </View>
-          )}
+          ) : null}
 
-          {/* Pantry Status Notice if user has selected ingredients */}
-          {userSelectedIngredients.length > 0 && (
-            <View style={styles.pantrySummaryBox}>
-              <Text style={styles.pantrySummaryTitle}>
-                🧺 Your Dorm Pantry Status:
-              </Text>
-              <Text style={styles.pantrySummaryDetails}>
-                You have {ownedIngredients.length} of {recipe.ingredients.length} items.
-                {missingIngredients.length > 0 ? (
-                  <Text style={{ color: '#B45309', fontWeight: '700' }}>
-                    {' '}Need to buy {missingIngredients.length} item(s) for approx +₱
-                    {missingIngredients.reduce((s, i) => s + (i.cost || 0), 0)}.
-                  </Text>
-                ) : (
-                  <Text style={{ color: '#15803D', fontWeight: '700' }}>
-                    {' '}You have everything ready to cook right now!
-                  </Text>
-                )}
-              </Text>
-            </View>
-          )}
-
-          {/* Ingredients Section with Estimated Sari-Sari Store / Market Prices */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🛒 Ingredients & Cost Breakdown</Text>
-              <Text style={styles.sectionNote}>Local Palengke Prices</Text>
+          {/* Ingredients Section matching Figma (Scaled to you: 1p) */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeading}>Ingredients</Text>
+              <Text style={styles.sectionSubHeading}>(Scaled to you: 1p)</Text>
             </View>
 
-            <View style={styles.ingredientList}>
-              {recipe.ingredients.map((item, idx) => {
-                const userHas = userIngredientSet.has(item.id);
-                const showPantryTag = userSelectedIngredients.length > 0;
-
+            <View style={styles.ingredientsList}>
+              {recipe.ingredients.map((ing, idx) => {
+                const checked = !!checkedItems[idx];
                 return (
-                  <View key={idx} style={styles.ingredientRow}>
-                    <View style={styles.ingredientLeft}>
-                      {showPantryTag && (
-                        <Text style={styles.pantryCheck}>
-                          {userHas ? '✅' : '🛒'}
-                        </Text>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.ingredientName}>{item.name}</Text>
-                        <Text style={styles.ingredientQty}>{item.quantity}</Text>
-                      </View>
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.ingredientRow}
+                    onPress={() => toggleCheck(idx)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.checkBox,
+                        checked && styles.checkBoxChecked,
+                      ]}
+                    >
+                      <Text style={styles.checkMark}>{checked ? '✓' : ''}</Text>
                     </View>
-                    <View style={styles.ingredientCostBadge}>
-                      <Text style={styles.ingredientCostText}>~₱{item.cost}</Text>
-                    </View>
-                  </View>
+
+                    <Text
+                      style={[
+                        styles.ingredientNameText,
+                        checked && styles.ingredientNameChecked,
+                      ]}
+                    >
+                      {ing.name}{' '}
+                      <Text style={styles.ingredientQtyText}>({ing.quantity})</Text>
+                    </Text>
+
+                    <Text style={styles.ingredientPriceText}>
+                      ~ ₱{ing.cost}
+                    </Text>
+                  </TouchableOpacity>
                 );
               })}
             </View>
 
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Estimated Total Expense:</Text>
-              <Text style={styles.totalAmount}>₱{totalCost}</Text>
-            </View>
+            <Text style={styles.priceDisclaimer}>
+              * Prices are estimated based on local/sari-sari market prices.
+            </Text>
           </View>
 
-          {/* Step-by-Step Cooking Guide */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🍳 Step-by-Step Instructions</Text>
-              <Text style={styles.sectionNote}>Tailored for 1-burner stoves</Text>
+          {/* Step-by-Step Section (Dorm-friendly - 1 pot) */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeading}>Step-by-step</Text>
+              <Text style={styles.sectionSubHeading}>(Dorm-friendly - {recipe.cookware})</Text>
             </View>
 
-            <View style={styles.instructionsList}>
+            <View style={styles.stepsList}>
               {recipe.instructions.map((step, idx) => (
-                <View key={idx} style={styles.instructionStep}>
-                  <View style={styles.stepNumberBadge}>
-                    <Text style={styles.stepNumberText}>{idx + 1}</Text>
+                <View key={idx} style={styles.stepItem}>
+                  <View style={styles.stepNumCircle}>
+                    <Text style={styles.stepNumText}>{idx + 1}</Text>
                   </View>
-                  <Text style={styles.stepText}>{step}</Text>
+                  <Text style={styles.stepInstructionText}>{step}</Text>
                 </View>
               ))}
             </View>
           </View>
 
-          {/* Nutrition / Note Section */}
-          {recipe.nutritionHighlights && (
-            <View style={styles.nutritionBox}>
-              <Text style={styles.nutritionTitle}>🥗 Nutrition Highlight</Text>
-              <Text style={styles.nutritionText}>{recipe.nutritionHighlights}</Text>
-            </View>
-          )}
-
-          {/* Bottom spacing */}
-          <View style={{ height: 40 }} />
+          {/* Bottom spacer */}
+          <View style={{ height: 90 }} />
         </ScrollView>
+
+        {/* Floating Bottom Action Button matching Figma */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[
+              styles.startCookingBtn,
+              cookingMode && styles.startCookingBtnDone,
+            ]}
+            onPress={() => setCookingMode(!cookingMode)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.startCookingBtnText}>
+              {cookingMode ? '✅ Mark as Cooked!' : 'Start Cooking'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFAF9',
   },
   topBar: {
     flexDirection: 'row',
@@ -232,42 +236,33 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E7E5E4',
+  },
+  navActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F5F5F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navActionIcon: {
+    fontSize: 16,
+    color: '#1C1917',
+    fontWeight: '700',
   },
   topBarTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1C1917',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 8,
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
+  topRightActions: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeIcon: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  favBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  favBtnActive: {
-    backgroundColor: '#FFE4E6',
-  },
-  favIcon: {
-    fontSize: 16,
+    gap: 8,
   },
   scrollBody: {
     flex: 1,
@@ -275,256 +270,214 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 18,
+  imageBannerBox: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    height: 190,
+    backgroundColor: '#F5F5F4',
+    marginBottom: 14,
   },
-  emojiCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FFF7ED',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FED7AA',
-    marginBottom: 12,
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
-  heroEmoji: {
-    fontSize: 38,
+  titleContainer: {
+    marginBottom: 10,
   },
   dishTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
+    fontWeight: '900',
+    color: '#1C1917',
   },
   dishEnglish: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
+    fontSize: 13,
+    color: '#78716C',
     marginTop: 2,
-    marginBottom: 10,
   },
-  description: {
-    fontSize: 13,
-    color: '#334155',
-    textAlign: 'center',
-    lineHeight: 19,
-    paddingHorizontal: 8,
-  },
-  metricsGrid: {
+  badgesRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  metricCard: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 14,
   },
-  metricLabel: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
+  orangePriceBadge: {
+    backgroundColor: '#FF6B00',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  metricValue: {
-    fontSize: 17,
+  orangePriceText: {
+    color: '#FFFFFF',
     fontWeight: '800',
-    marginVertical: 2,
-  },
-  metricValueSmall: {
     fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginTop: 4,
   },
-  metricSub: {
-    fontSize: 9,
-    color: '#94A3B8',
-    fontWeight: '500',
+  metaPill: {
+    backgroundColor: '#F5F5F4',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E7E5E4',
   },
-  dormTipBox: {
-    backgroundColor: '#FFFBEB',
+  metaPillText: {
+    fontSize: 11,
+    color: '#44403C',
+    fontWeight: '600',
+  },
+  tipBox: {
+    backgroundColor: '#FFF7ED',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#FED7AA',
   },
-  dormTipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  dormTipIcon: {
-    fontSize: 14,
-    marginRight: 6,
-  },
-  dormTipTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  dormTipText: {
+  tipTitle: {
     fontSize: 12,
-    color: '#78350F',
-    lineHeight: 18,
-  },
-  pantrySummaryBox: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  pantrySummaryTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E40AF',
+    fontWeight: '800',
+    color: '#9A3412',
     marginBottom: 2,
   },
-  pantrySummaryDetails: {
+  tipBody: {
     fontSize: 12,
-    color: '#1E3A8A',
-    lineHeight: 17,
+    color: '#7C2D12',
+    lineHeight: 18,
   },
-  section: {
+  sectionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 14,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E7E5E4',
   },
-  sectionHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'baseline',
+    gap: 6,
+    marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 8,
+    borderBottomColor: '#F5F5F4',
+    paddingBottom: 6,
   },
-  sectionTitle: {
+  sectionHeading: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: '#1C1917',
   },
-  sectionNote: {
-    fontSize: 10,
-    color: '#94A3B8',
-    fontWeight: '600',
+  sectionSubHeading: {
+    fontSize: 11,
+    color: '#78716C',
   },
-  ingredientList: {
+  ingredientsList: {
     gap: 8,
   },
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
-  ingredientLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
-  },
-  pantryCheck: {
-    fontSize: 13,
-    marginRight: 8,
-  },
-  ingredientName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  ingredientQty: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  ingredientCostBadge: {
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  checkBox: {
+    width: 20,
+    height: 20,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  ingredientCostText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  totalLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  totalAmount: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#EA580C',
-  },
-  instructionsList: {
-    gap: 12,
-  },
-  instructionStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  stepNumberBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#EA580C',
+    borderWidth: 1.5,
+    borderColor: '#D6D3D1',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-    marginTop: 2,
   },
-  stepNumberText: {
+  checkBoxChecked: {
+    backgroundColor: '#FF6B00',
+    borderColor: '#FF6B00',
+  },
+  checkMark: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  ingredientNameText: {
+    fontSize: 13,
+    color: '#292524',
+    fontWeight: '600',
+    flex: 1,
+  },
+  ingredientNameChecked: {
+    textDecorationLine: 'line-through',
+    color: '#A8A29E',
+  },
+  ingredientQtyText: {
+    color: '#78716C',
+    fontWeight: '400',
+    fontSize: 12,
+  },
+  ingredientPriceText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#FF6B00',
   },
-  stepText: {
+  priceDisclaimer: {
+    fontSize: 10,
+    color: '#A8A29E',
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  stepsList: {
+    gap: 12,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  stepNumCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFEDD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 1,
+  },
+  stepNumText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#EA580C',
+  },
+  stepInstructionText: {
     fontSize: 13,
     color: '#334155',
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 19,
   },
-  nutritionBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: 'rgba(250, 250, 249, 0.95)',
+    borderTopWidth: 1,
+    borderTopColor: '#E7E5E4',
   },
-  nutritionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 2,
+  startCookingBtn: {
+    backgroundColor: '#FF6B00',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  nutritionText: {
-    fontSize: 12,
-    color: '#64748B',
+  startCookingBtnDone: {
+    backgroundColor: '#16A34A',
+  },
+  startCookingBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

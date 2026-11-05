@@ -9,33 +9,36 @@ import {
   Modal,
 } from 'react-native';
 import { FavoritesProvider, useFavorites } from './src/context/FavoritesContext';
-import { Header } from './src/components/Header';
 import { HomeScreen } from './src/screens/HomeScreen';
-import { BudgetScreen } from './src/screens/BudgetScreen';
 import { PantryScreen } from './src/screens/PantryScreen';
+import { RecipeListScreen } from './src/screens/RecipeListScreen';
+import { BudgetScreen } from './src/screens/BudgetScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AboutScreen } from './src/screens/AboutScreen';
 import { RecipeDetailModal } from './src/components/RecipeDetailModal';
-import { DormTipsModal } from './src/components/DormTipsModal';
 
 function MainApp() {
-  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'budget' | 'pantry' | 'favorites'
+  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'pantry' | 'recipes' | 'favorites' | 'profile' | 'budget'
   const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [tipsVisible, setTipsVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
 
-  // Shared user pantry selection (e.g. ['egg', 'rice', 'garlic', 'onion'])
+  // User pantry state matching Figma prototype
   const [userPantry, setUserPantry] = useState([
-    'egg',
     'rice',
+    'egg',
     'garlic',
     'onion',
     'soy_sauce',
+    'vinegar',
+    'chicken',
+    'cabbage',
+    'cooking_oil',
   ]);
 
   const { favorites } = useFavorites();
 
-  const handleOpenRecipe = (recipe, customPantry) => {
+  const handleOpenRecipe = (recipe) => {
     setSelectedRecipe(recipe);
   };
 
@@ -47,13 +50,7 @@ function MainApp() {
     <SafeAreaView style={styles.safeContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Main Top Header */}
-      <Header
-        onOpenTips={() => setTipsVisible(true)}
-        onOpenAbout={() => setAboutVisible(true)}
-      />
-
-      {/* Main Screen Content */}
+      {/* Screen View */}
       <View style={styles.mainContent}>
         {activeTab === 'home' && (
           <HomeScreen
@@ -61,32 +58,50 @@ function MainApp() {
             onNavigateTab={(tab) => setActiveTab(tab)}
           />
         )}
+
+        {activeTab === 'pantry' && (
+          <PantryScreen
+            userPantry={userPantry}
+            setUserPantry={setUserPantry}
+            onFindRecipes={() => setActiveTab('recipes')}
+            onGoBack={() => setActiveTab('home')}
+          />
+        )}
+
+        {activeTab === 'recipes' && (
+          <RecipeListScreen
+            onSelectRecipe={handleOpenRecipe}
+            userPantry={userPantry}
+          />
+        )}
+
         {activeTab === 'budget' && (
           <BudgetScreen onSelectRecipe={handleOpenRecipe} />
         )}
-        {activeTab === 'pantry' && (
-          <PantryScreen
-            onSelectRecipe={handleOpenRecipe}
-            userPantry={userPantry}
-            setUserPantry={setUserPantry}
-          />
-        )}
+
         {activeTab === 'favorites' && (
           <FavoritesScreen
             onSelectRecipe={handleOpenRecipe}
-            onExplore={() => setActiveTab('home')}
+            onExplore={() => setActiveTab('recipes')}
           />
+        )}
+
+        {activeTab === 'profile' && (
+          <ProfileScreen onOpenAbout={() => setAboutVisible(true)} />
         )}
       </View>
 
-      {/* Bottom Navigation Tab Bar */}
+      {/* 5 Bottom Navigation Tabs matching Figma Screenshot:
+          [Home] [Pantry] [Recipes] [Favorites] [Profile] */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
-          style={[styles.navItem, activeTab === 'home' && styles.navItemActive]}
+          style={styles.navItem}
           onPress={() => setActiveTab('home')}
           activeOpacity={0.8}
         >
-          <Text style={styles.navIcon}>🏠</Text>
+          <Text style={[styles.navIcon, activeTab === 'home' && styles.navIconActive]}>
+            🏠
+          </Text>
           <Text
             style={[
               styles.navLabel,
@@ -98,31 +113,17 @@ function MainApp() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.navItem, activeTab === 'budget' && styles.navItemActive]}
-          onPress={() => setActiveTab('budget')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.navIcon}>💰</Text>
-          <Text
-            style={[
-              styles.navLabel,
-              activeTab === 'budget' && styles.navLabelActive,
-            ]}
-          >
-            Budget Mode
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'pantry' && styles.navItemActive]}
+          style={styles.navItem}
           onPress={() => setActiveTab('pantry')}
           activeOpacity={0.8}
         >
           <View style={styles.iconWithBadge}>
-            <Text style={styles.navIcon}>🧺</Text>
+            <Text style={[styles.navIcon, activeTab === 'pantry' && styles.navIconActive]}>
+              🧺
+            </Text>
             {userPantry.length > 0 && (
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>{userPantry.length}</Text>
+              <View style={styles.tabDotBadge}>
+                <Text style={styles.tabDotBadgeText}>{userPantry.length}</Text>
               </View>
             )}
           </View>
@@ -132,23 +133,40 @@ function MainApp() {
               activeTab === 'pantry' && styles.navLabelActive,
             ]}
           >
-            Pantry Mode
+            Pantry
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.navItem,
-            activeTab === 'favorites' && styles.navItemActive,
-          ]}
+          style={styles.navItem}
+          onPress={() => setActiveTab('recipes')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.navIcon, activeTab === 'recipes' && styles.navIconActive]}>
+            📋
+          </Text>
+          <Text
+            style={[
+              styles.navLabel,
+              activeTab === 'recipes' && styles.navLabelActive,
+            ]}
+          >
+            Recipes
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
           onPress={() => setActiveTab('favorites')}
           activeOpacity={0.8}
         >
           <View style={styles.iconWithBadge}>
-            <Text style={styles.navIcon}>❤️</Text>
+            <Text style={[styles.navIcon, activeTab === 'favorites' && styles.navIconActive]}>
+              ❤️
+            </Text>
             {favorites.length > 0 && (
-              <View style={styles.tabBadgeRed}>
-                <Text style={styles.tabBadgeText}>{favorites.length}</Text>
+              <View style={styles.tabDotBadgeRed}>
+                <Text style={styles.tabDotBadgeText}>{favorites.length}</Text>
               </View>
             )}
           </View>
@@ -161,6 +179,24 @@ function MainApp() {
             Favorites
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('profile')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.navIcon, activeTab === 'profile' && styles.navIconActive]}>
+            👤
+          </Text>
+          <Text
+            style={[
+              styles.navLabel,
+              activeTab === 'profile' && styles.navLabelActive,
+            ]}
+          >
+            Profile
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Recipe Detail Modal */}
@@ -171,12 +207,6 @@ function MainApp() {
         userSelectedIngredients={userPantry}
       />
 
-      {/* Dorm Cooking Tips Modal */}
-      <DormTipsModal
-        visible={tipsVisible}
-        onClose={() => setTipsVisible(false)}
-      />
-
       {/* About Project & Proponents Modal */}
       <Modal
         visible={aboutVisible}
@@ -184,7 +214,7 @@ function MainApp() {
         presentationStyle="pageSheet"
         onRequestClose={() => setAboutVisible(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
           <View style={styles.aboutModalTop}>
             <Text style={styles.aboutModalTitle}>Project Details</Text>
             <TouchableOpacity
@@ -212,79 +242,76 @@ export default function App() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FAFAF9',
   },
   mainContent: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFAF9',
   },
   bottomNav: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingVertical: 8,
-    paddingBottom: 10,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderTopColor: '#E7E5E4',
+    paddingVertical: 6,
+    paddingBottom: 8,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-  },
-  navItemActive: {
-    transform: [{ scale: 1.05 }],
+    paddingVertical: 2,
   },
   navIcon: {
-    fontSize: 20,
+    fontSize: 18,
     marginBottom: 2,
+    opacity: 0.6,
+  },
+  navIconActive: {
+    opacity: 1,
+    transform: [{ scale: 1.1 }],
   },
   iconWithBadge: {
     position: 'relative',
     alignItems: 'center',
   },
-  tabBadge: {
+  tabDotBadge: {
     position: 'absolute',
-    top: -4,
-    right: -10,
-    backgroundColor: '#16A34A',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    top: -3,
+    right: -8,
+    backgroundColor: '#FF6B00',
+    borderRadius: 7,
+    minWidth: 14,
+    height: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 2,
   },
-  tabBadgeRed: {
+  tabDotBadgeRed: {
     position: 'absolute',
-    top: -4,
-    right: -10,
-    backgroundColor: '#E11D48',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    top: -3,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 7,
+    minWidth: 14,
+    height: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 2,
   },
-  tabBadgeText: {
+  tabDotBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
   },
   navLabel: {
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 10,
+    color: '#78716C',
     fontWeight: '600',
   },
   navLabelActive: {
-    color: '#EA580C',
-    fontWeight: '700',
+    color: '#FF6B00',
+    fontWeight: '800',
   },
   aboutModalTop: {
     flexDirection: 'row',
@@ -294,24 +321,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E7E5E4',
   },
   aboutModalTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: '#1C1917',
   },
   aboutCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F5F5F4',
     alignItems: 'center',
     justifyContent: 'center',
   },
   aboutCloseIcon: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
+    fontWeight: '800',
+    color: '#57534E',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,59 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 import { RECIPES } from '../data/recipes';
-import { RecipeCard } from '../components/RecipeCard';
+import { useFavorites } from '../context/FavoritesContext';
 
 export const HomeScreen = ({ onSelectRecipe, onNavigateTab }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('ALL');
-  const [randomSuggestion, setRandomSuggestion] = useState(null);
+  const [search, setSearch] = useState('');
+  const { isFavorite, toggleFavorite } = useFavorites();
 
-  const FILTERS = [
-    { id: 'ALL', label: 'All Dishes' },
-    { id: 'UNDER_40', label: '⚡ Under ₱40' },
-    { id: 'FAST', label: '⏱️ Under 15m' },
-    { id: 'RICE_COOKER', label: '🍚 Rice Cooker' },
-    { id: 'GULAY', label: '🥬 Gulay' },
-    { id: 'SABAW', label: '🍲 May Sabaw' },
-    { id: 'ITLOG', label: '🥚 Itlog / Torta' },
-  ];
-
-  const filteredRecipes = useMemo(() => {
-    return RECIPES.filter((r) => {
-      // Search matching
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = r.title.toLowerCase().includes(q);
-        const matchesEnglish = r.englishName.toLowerCase().includes(q);
-        const matchesIng = r.ingredients.some((ing) =>
-          ing.name.toLowerCase().includes(q)
-        );
-        if (!matchesTitle && !matchesEnglish && !matchesIng) return false;
-      }
-
-      // Chip filters
-      if (activeFilter === 'UNDER_40') return r.totalCost <= 40;
-      if (activeFilter === 'FAST') return r.prepTime <= 15;
-      if (activeFilter === 'RICE_COOKER')
-        return r.cookware.toLowerCase().includes('rice cooker');
-      if (activeFilter === 'GULAY')
-        return r.category.toLowerCase().includes('gulay');
-      if (activeFilter === 'SABAW')
-        return r.category.toLowerCase().includes('sabaw');
-      if (activeFilter === 'ITLOG')
-        return r.category.toLowerCase().includes('itlog');
-
-      return true;
-    });
-  }, [searchQuery, activeFilter]);
-
-  const handleRandomPick = () => {
-    const randomIndex = Math.floor(Math.random() * RECIPES.length);
-    const pick = RECIPES[randomIndex];
-    setRandomSuggestion(pick);
-  };
+  const recommended = RECIPES.slice(0, 4);
 
   return (
     <ScrollView
@@ -66,165 +23,158 @@ export const HomeScreen = ({ onSelectRecipe, onNavigateTab }) => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Search Input Bar */}
-      <View style={styles.searchSection}>
+      {/* Brand Header */}
+      <View style={styles.header}>
+        <View style={styles.brandRow}>
+          <View style={styles.potIconBox}>
+            <Text style={styles.potIcon}>🍲</Text>
+          </View>
+          <Text style={styles.brandTitle}>LutoTa</Text>
+        </View>
+        <Text style={styles.brandTagline}>Budget meals for your dorm</Text>
+      </View>
+
+      {/* Greeting Banner */}
+      <View style={styles.greetingBox}>
+        <Text style={styles.greetingTitle}>Kumusta, Student! 👋</Text>
+        <Text style={styles.greetingSub}>Ano ulam natin ngayon?</Text>
+      </View>
+
+      {/* Search Bar with Filter Icon */}
+      <View style={styles.searchRow}>
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search dish, egg, sardinas, toyo, kangkong..."
+            placeholder="Search for a recipe..."
             placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={() => onNavigateTab('recipes')}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearSearchIcon}>✕</Text>
-            </TouchableOpacity>
-          )}
         </View>
+        <TouchableOpacity
+          style={styles.filterBtn}
+          onPress={() => onNavigateTab('budget')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.filterBtnIcon}>⚙️</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Hero Mode Selection Cards */}
-      <View style={styles.modesContainer}>
-        {/* Budget Mode Card */}
+      {/* 2 Main Hero Mode Cards matching Figma */}
+      <View style={styles.heroModesRow}>
+        {/* Left: Budget Mode (Orange) */}
         <TouchableOpacity
-          style={[styles.modeCard, styles.budgetCard]}
+          style={styles.budgetCard}
           onPress={() => onNavigateTab('budget')}
           activeOpacity={0.85}
         >
-          <View style={styles.modeIconCircle}>
-            <Text style={styles.modeEmoji}>💰</Text>
+          <View style={styles.budgetIconCircle}>
+            <Text style={styles.budgetPesoIcon}>₱</Text>
           </View>
-          <View style={styles.modeTextContainer}>
-            <Text style={styles.modeTitle}>Budget Mode</Text>
-            <Text style={styles.modeSubtitle}>Set ₱50–₱80 target allowance</Text>
-            <View style={styles.modePillOrange}>
-              <Text style={styles.modePillOrangeText}>Filter by Peso Range →</Text>
-            </View>
+          <Text style={styles.budgetCardTitle}>Budget Mode</Text>
+          <Text style={styles.budgetCardRange}>₱50–₱80</Text>
+          <View style={styles.budgetCardPill}>
+            <Text style={styles.budgetCardPillText}>Set your budget</Text>
           </View>
         </TouchableOpacity>
 
-        {/* Pantry Mode Card */}
+        {/* Right: Pantry Mode (Cream/Tan) */}
         <TouchableOpacity
-          style={[styles.modeCard, styles.pantryCard]}
+          style={styles.pantryCard}
           onPress={() => onNavigateTab('pantry')}
           activeOpacity={0.85}
         >
-          <View style={styles.modeIconCircleGreen}>
-            <Text style={styles.modeEmoji}>🧺</Text>
+          <View style={styles.pantryIconCircle}>
+            <Text style={styles.pantryIcon}>🧺</Text>
           </View>
-          <View style={styles.modeTextContainer}>
-            <Text style={styles.modeTitle}>Pantry Mode</Text>
-            <Text style={styles.modeSubtitle}>Cook what you already have</Text>
-            <View style={styles.modePillGreen}>
-              <Text style={styles.modePillGreenText}>Check Ingredients →</Text>
-            </View>
+          <Text style={styles.pantryCardTitle}>Pantry Mode</Text>
+          <Text style={styles.pantryCardSubtitle}>Cook by ingredients</Text>
+          <View style={styles.pantryCardPill}>
+            <Text style={styles.pantryCardPillText}>Select ingredients</Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Random "Ano Ulam?" Generator Button */}
+      {/* "Ano Ulam?" Quick Generator */}
       <TouchableOpacity
-        style={styles.randomBanner}
-        onPress={handleRandomPick}
+        style={styles.randomBar}
+        onPress={() => {
+          const rand = RECIPES[Math.floor(Math.random() * RECIPES.length)];
+          onSelectRecipe(rand);
+        }}
         activeOpacity={0.85}
       >
-        <View style={styles.randomLeft}>
-          <Text style={styles.randomEmoji}>🎲</Text>
-          <View>
-            <Text style={styles.randomTitle}>Hindi alam ang lulutuin?</Text>
-            <Text style={styles.randomSub}>
-              Tap for a random student budget recipe recommendation!
-            </Text>
-          </View>
+        <Text style={styles.randomEmoji}>🎲</Text>
+        <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <Text style={styles.randomTitle}>Hindi makapag-decide?</Text>
+          <Text style={styles.randomSub}>Tap for a random budget dorm ulam</Text>
         </View>
         <View style={styles.randomBtn}>
-          <Text style={styles.randomBtnText}>Ano Ulam?</Text>
+          <Text style={styles.randomBtnText}>Ano Ulam? →</Text>
         </View>
       </TouchableOpacity>
 
-      {/* Suggested Dish Popup Preview if selected */}
-      {randomSuggestion && (
-        <View style={styles.suggestedBox}>
-          <View style={styles.suggestedHeader}>
-            <Text style={styles.suggestedBadge}>✨ Suggested for Today</Text>
-            <TouchableOpacity onPress={() => setRandomSuggestion(null)}>
-              <Text style={styles.suggestedClose}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.suggestedTitle}>
-            {randomSuggestion.emoji} {randomSuggestion.title}
-          </Text>
-          <Text style={styles.suggestedCost}>
-            Total ~₱{randomSuggestion.totalCost} (₱{randomSuggestion.costPerServing.toFixed(0)}/head) • {randomSuggestion.prepTime} mins
-          </Text>
-          <TouchableOpacity
-            style={styles.suggestedViewBtn}
-            onPress={() => {
-              onSelectRecipe(randomSuggestion);
-            }}
-          >
-            <Text style={styles.suggestedViewBtnText}>View Cooking Steps →</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Recommended for You Today Section */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recommended for you today</Text>
+        <TouchableOpacity onPress={() => onNavigateTab('recipes')}>
+          <Text style={styles.seeAllText}>See all &gt;</Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Filter Chips Horizontal Bar */}
-      <View style={styles.filterSection}>
-        <Text style={styles.sectionHeaderTitle}>Curated Filipino Student Dishes</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsScroll}
-        >
-          {FILTERS.map((f) => {
-            const active = activeFilter === f.id;
-            return (
+      {/* Recommended Recipe Cards */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.recommendedScroll}
+      >
+        {recommended.map((recipe) => {
+          const favorited = isFavorite(recipe.id);
+          return (
+            <TouchableOpacity
+              key={recipe.id}
+              style={styles.recipeCard}
+              onPress={() => onSelectRecipe(recipe)}
+              activeOpacity={0.88}
+            >
+              <Image
+                source={{ uri: recipe.image }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
               <TouchableOpacity
-                key={f.id}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setActiveFilter(f.id)}
+                style={[
+                  styles.cardHeart,
+                  favorited && styles.cardHeartActive,
+                ]}
+                onPress={() => toggleFavorite(recipe.id)}
               >
-                <Text
-                  style={[styles.filterChipText, active && styles.filterChipTextActive]}
-                >
-                  {f.label}
-                </Text>
+                <Text style={styles.cardHeartIcon}>{favorited ? '❤️' : '🤍'}</Text>
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
 
-      {/* Recipe List */}
-      <View style={styles.recipeListContainer}>
-        <View style={styles.countRow}>
-          <Text style={styles.countText}>
-            Showing {filteredRecipes.length} budget recipes
-          </Text>
-        </View>
+              <View style={styles.cardBody}>
+                <View style={styles.cardPriceRow}>
+                  <Text style={styles.cardPrice}>₱{recipe.totalCost}</Text>
+                  <Text style={styles.cardServing}>~₱{recipe.costPerServing}/p</Text>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {recipe.title}
+                </Text>
+                <View style={styles.cardMetaRow}>
+                  <Text style={styles.cardMetaText}>⏱️ {recipe.prepTime} mins</Text>
+                  <Text style={styles.cardMetaDot}>•</Text>
+                  <Text style={styles.cardMetaText}>🍳 {recipe.cookware}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-        {filteredRecipes.map((item) => (
-          <RecipeCard
-            key={item.id}
-            recipe={item}
-            onPress={onSelectRecipe}
-          />
-        ))}
-
-        {filteredRecipes.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🍳</Text>
-            <Text style={styles.emptyTitle}>No matching recipes found</Text>
-            <Text style={styles.emptySub}>
-              Try searching with different ingredients or reset filters.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View style={{ height: 40 }} />
+      {/* Bottom spacer */}
+      <View style={{ height: 30 }} />
     </ScrollView>
   );
 };
@@ -232,278 +182,313 @@ export const HomeScreen = ({ onSelectRecipe, onNavigateTab }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFAF9',
   },
   content: {
-    paddingBottom: 24,
-  },
-  searchSection: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 6,
+    paddingBottom: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  potIconBox: {
+    marginRight: 6,
+  },
+  potIcon: {
+    fontSize: 22,
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FF6B00',
+    letterSpacing: -0.5,
+  },
+  brandTagline: {
+    fontSize: 11,
+    color: '#78716C',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  greetingBox: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  greetingTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1C1917',
+  },
+  greetingSub: {
+    fontSize: 13,
+    color: '#78716C',
+    marginTop: 2,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E7E5E4',
   },
   searchIcon: {
-    fontSize: 16,
+    fontSize: 14,
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
+    fontSize: 13,
+    color: '#1C1917',
     padding: 0,
   },
-  clearSearchIcon: {
-    fontSize: 14,
-    color: '#94A3B8',
-    paddingHorizontal: 4,
-  },
-  modesContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 10,
-    marginTop: 10,
-  },
-  modeCard: {
-    flex: 1,
+  filterBtn: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    padding: 12,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
+    borderColor: '#E7E5E4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtnIcon: {
+    fontSize: 16,
+  },
+  heroModesRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
   },
   budgetCard: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FFEDD5',
+    flex: 1,
+    backgroundColor: '#FF6B00',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  budgetIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  budgetPesoIcon: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FF6B00',
+  },
+  budgetCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  budgetCardRange: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFEDD5',
+    marginVertical: 2,
+  },
+  budgetCardPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  budgetCardPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   pantryCard: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#DCFCE7',
+    flex: 1,
+    backgroundColor: '#F5EBE1',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E6D7C8',
   },
-  modeIconCircle: {
+  pantryIconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFEDD5',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  modeIconCircleGreen: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  modeEmoji: {
+  pantryIcon: {
     fontSize: 18,
   },
-  modeTextContainer: {
-    flex: 1,
-  },
-  modeTitle: {
+  pantryCardTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: '#443A33',
   },
-  modeSubtitle: {
+  pantryCardSubtitle: {
     fontSize: 11,
-    color: '#64748B',
-    marginVertical: 4,
+    color: '#78716C',
+    marginVertical: 2,
   },
-  modePillOrange: {
-    backgroundColor: '#EA580C',
-    paddingHorizontal: 8,
+  pantryCardPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 4,
+    borderRadius: 12,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#D6C7B8',
   },
-  modePillOrangeText: {
+  pantryCardPillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#57483E',
   },
-  modePillGreen: {
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  modePillGreenText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  randomBanner: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 14,
-    padding: 12,
+  randomBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
-  randomLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
-  },
   randomEmoji: {
-    fontSize: 24,
-    marginRight: 10,
+    fontSize: 22,
   },
   randomTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#92400E',
   },
   randomSub: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#B45309',
-    marginTop: 1,
   },
   randomBtn: {
     backgroundColor: '#D97706',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 8,
   },
   randomBtnText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  suggestedBox: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#F59E0B',
-  },
-  suggestedHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  suggestedBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D97706',
-    textTransform: 'uppercase',
-  },
-  suggestedClose: {
-    fontSize: 13,
-    color: '#94A3B8',
-    padding: 2,
-  },
-  suggestedTitle: {
+  sectionTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: '#1C1917',
   },
-  suggestedCost: {
-    fontSize: 12,
-    color: '#475569',
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  suggestedViewBtn: {
-    backgroundColor: '#FFFBEB',
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-  },
-  suggestedViewBtnText: {
+  seeAllText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B45309',
+    color: '#FF6B00',
   },
-  filterSection: {
-    marginTop: 16,
+  recommendedScroll: {
+    gap: 12,
+    paddingBottom: 4,
   },
-  sectionHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  chipsScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+  recipeCard: {
+    width: 175,
     backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E7E5E4',
+    overflow: 'hidden',
+    position: 'relative',
   },
-  filterChipActive: {
-    backgroundColor: '#EA580C',
-    borderColor: '#EA580C',
+  cardImage: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#F5F5F4',
   },
-  filterChipText: {
-    fontSize: 12,
+  cardHeart: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeartActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  cardHeartIcon: {
+    fontSize: 14,
+  },
+  cardBody: {
+    padding: 10,
+  },
+  cardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    marginBottom: 2,
+  },
+  cardPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FF6B00',
+  },
+  cardServing: {
+    fontSize: 10,
+    color: '#78716C',
     fontWeight: '600',
-    color: '#475569',
   },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-  },
-  recipeListContainer: {
-    marginTop: 10,
-  },
-  countRow: {
-    paddingHorizontal: 16,
+  cardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1917',
     marginBottom: 4,
   },
-  countText: {
-    fontSize: 12,
-    color: '#64748B',
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardMetaText: {
+    fontSize: 10,
+    color: '#78716C',
     fontWeight: '500',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  emptySub: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 4,
+  cardMetaDot: {
+    marginHorizontal: 4,
+    color: '#A8A29E',
+    fontSize: 8,
   },
 });
