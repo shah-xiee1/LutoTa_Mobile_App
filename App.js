@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,7 +8,9 @@ import {
   Text,
   Modal,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FavoritesProvider, useFavorites } from './src/context/FavoritesContext';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -21,27 +23,59 @@ import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AboutScreen } from './src/screens/AboutScreen';
 import { RecipeDetailModal } from './src/components/RecipeDetailModal';
+import { DormTipsModal } from './src/components/DormTipsModal';
+
+const PANTRY_STORAGE_KEY = '@lutota_user_pantry';
+const DEFAULT_PANTRY = [
+  'rice',
+  'egg',
+  'garlic',
+  'onion',
+  'soy_sauce',
+  'vinegar',
+  'chicken',
+  'cabbage',
+  'cooking_oil',
+];
 
 function MainAppContent() {
-  const { user, isGuest, loading } = useAuth();
+  const { user, isGuest, resetGuest, loading } = useAuth();
   const [authView, setAuthView] = useState('login'); // 'login' | 'signup'
 
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'pantry' | 'recipes' | 'favorites' | 'profile' | 'budget'
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [aboutVisible, setAboutVisible] = useState(false);
+  const [dormTipsVisible, setDormTipsVisible] = useState(false);
+  const [recipeSearchQuery, setRecipeSearchQuery] = useState('');
 
-  // User pantry state matching Figma prototype
-  const [userPantry, setUserPantry] = useState([
-    'rice',
-    'egg',
-    'garlic',
-    'onion',
-    'soy_sauce',
-    'vinegar',
-    'chicken',
-    'cabbage',
-    'cooking_oil',
-  ]);
+  // User pantry state matching Figma prototype with offline AsyncStorage persistence
+  const [userPantry, setUserPantry] = useState(DEFAULT_PANTRY);
+
+  useEffect(() => {
+    const loadPantry = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(PANTRY_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setUserPantry(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load user pantry from storage', e);
+      }
+    };
+    loadPantry();
+  }, []);
+
+  const handleUpdatePantry = async (newPantry) => {
+    setUserPantry(newPantry);
+    try {
+      await AsyncStorage.setItem(PANTRY_STORAGE_KEY, JSON.stringify(newPantry));
+    } catch (e) {
+      console.warn('Failed to persist user pantry to storage', e);
+    }
+  };
 
   const { favorites } = useFavorites();
 
@@ -80,14 +114,17 @@ function MainAppContent() {
         {activeTab === 'home' && (
           <HomeScreen
             onSelectRecipe={handleOpenRecipe}
-            onNavigateTab={(tab) => setActiveTab(tab)}
+            onNavigateTab={(tab, query = '') => {
+              if (query) setRecipeSearchQuery(query);
+              setActiveTab(tab);
+            }}
           />
         )}
 
         {activeTab === 'pantry' && (
           <PantryScreen
             userPantry={userPantry}
-            setUserPantry={setUserPantry}
+            setUserPantry={handleUpdatePantry}
             onFindRecipes={() => setActiveTab('recipes')}
             onGoBack={() => setActiveTab('home')}
           />
@@ -97,6 +134,9 @@ function MainAppContent() {
           <RecipeListScreen
             onSelectRecipe={handleOpenRecipe}
             userPantry={userPantry}
+            initialSearch={recipeSearchQuery}
+            onClearSearch={() => setRecipeSearchQuery('')}
+            onOpenTips={() => setDormTipsVisible(true)}
           />
         )}
 
@@ -114,7 +154,10 @@ function MainAppContent() {
         {activeTab === 'profile' && (
           <ProfileScreen
             onOpenAbout={() => setAboutVisible(true)}
-            onPromptLogin={() => setAuthView('login')}
+            onPromptLogin={() => {
+              resetGuest();
+              setAuthView('login');
+            }}
           />
         )}
       </View>
@@ -125,7 +168,8 @@ function MainAppContent() {
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveTab('home')}
-          activeOpacity={0.8}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
           <Text style={[styles.navIcon, activeTab === 'home' && styles.navIconActive]}>
             🏠
@@ -143,7 +187,8 @@ function MainAppContent() {
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveTab('pantry')}
-          activeOpacity={0.8}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
           <View style={styles.iconWithBadge}>
             <Text style={[styles.navIcon, activeTab === 'pantry' && styles.navIconActive]}>
@@ -168,7 +213,8 @@ function MainAppContent() {
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveTab('recipes')}
-          activeOpacity={0.8}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
           <Text style={[styles.navIcon, activeTab === 'recipes' && styles.navIconActive]}>
             📋
@@ -186,7 +232,8 @@ function MainAppContent() {
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveTab('favorites')}
-          activeOpacity={0.8}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
           <View style={styles.iconWithBadge}>
             <Text style={[styles.navIcon, activeTab === 'favorites' && styles.navIconActive]}>
@@ -211,7 +258,8 @@ function MainAppContent() {
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveTab('profile')}
-          activeOpacity={0.8}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
           <Text style={[styles.navIcon, activeTab === 'profile' && styles.navIconActive]}>
             👤
@@ -235,6 +283,12 @@ function MainAppContent() {
         userSelectedIngredients={userPantry}
       />
 
+      {/* Dorm Cooking Tips Modal */}
+      <DormTipsModal
+        visible={dormTipsVisible}
+        onClose={() => setDormTipsVisible(false)}
+      />
+
       {/* About Project & Proponents Modal */}
       <Modal
         visible={aboutVisible}
@@ -242,7 +296,13 @@ function MainAppContent() {
         presentationStyle="pageSheet"
         onRequestClose={() => setAboutVisible(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: '#FAFAF9',
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0,
+          }}
+        >
           <View style={styles.aboutModalTop}>
             <Text style={styles.aboutModalTitle}>Project Details</Text>
             <TouchableOpacity
@@ -273,6 +333,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: '#FAFAF9',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0,
   },
   centerContainer: {
     flex: 1,
@@ -295,14 +356,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E7E5E4',
-    paddingVertical: 6,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'android' ? 44 : 10,
+    elevation: 12,
+    zIndex: 999,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 2,
+    paddingVertical: 3,
+    minHeight: 44,
   },
   navIcon: {
     fontSize: 18,

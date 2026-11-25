@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,6 +22,7 @@ export const SignupScreen = ({ onNavigateLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { signup, continueAsGuest } = useAuth();
 
@@ -29,12 +31,26 @@ export const SignupScreen = ({ onNavigateLogin }) => {
       setErrorMsg('Please enter your name or nickname.');
       return;
     }
-    if (!email.trim()) {
+
+    const emailTrimmed = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailTrimmed) {
       setErrorMsg('Please enter your student email.');
       return;
     }
-    if (!password.trim() || password.length < 6) {
-      setErrorMsg('Password should be at least 6 characters.');
+    if (!emailRegex.test(emailTrimmed)) {
+      setErrorMsg('Please enter a valid student email address (e.g. student@university.edu.ph).');
+      return;
+    }
+
+    const budgetVal = Number(dailyBudget);
+    if (isNaN(budgetVal) || budgetVal < 20 || budgetVal > 500) {
+      setErrorMsg('Please enter a realistic daily budget between ₱20 and ₱500.');
+      return;
+    }
+
+    if (!password || password.trim().length < 6) {
+      setErrorMsg('Password should be at least 6 characters (no leading/trailing spaces).');
       return;
     }
     if (password !== confirmPassword) {
@@ -43,12 +59,19 @@ export const SignupScreen = ({ onNavigateLogin }) => {
     }
 
     setErrorMsg('');
-    await signup({
-      name,
-      email,
-      dormLocation: dormLocation || 'Campus Boarding House',
-      dailyBudget: Number(dailyBudget) || 70,
+    setIsSubmitting(true);
+    const result = await signup({
+      name: name.trim(),
+      email: emailTrimmed,
+      dormLocation: dormLocation.trim() || 'Campus Boarding House',
+      dailyBudget: budgetVal,
+      password,
     });
+    setIsSubmitting(false);
+
+    if (result && !result.success) {
+      setErrorMsg(result.error || 'Failed to create account. Please try again.');
+    }
   };
 
   return (
@@ -203,11 +226,14 @@ export const SignupScreen = ({ onNavigateLogin }) => {
 
             {/* Sign Up Button */}
             <TouchableOpacity
-              style={styles.signupBtn}
+              style={[styles.signupBtn, isSubmitting && { opacity: 0.7 }]}
               onPress={handleSignup}
+              disabled={isSubmitting}
               activeOpacity={0.85}
             >
-              <Text style={styles.signupBtnText}>Create Account</Text>
+              <Text style={styles.signupBtnText}>
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
+              </Text>
             </TouchableOpacity>
 
             {/* Continue as Guest */}
@@ -241,6 +267,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: '#FAFAF9',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0,
   },
   scrollBody: {
     flex: 1,

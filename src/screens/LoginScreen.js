@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,26 +18,47 @@ export const LoginScreen = ({ onNavigateSignup }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const { login, continueAsGuest } = useAuth();
 
   const handleLogin = async () => {
-    if (!email.trim()) {
-      setErrorMsg('Please enter your student email or username.');
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setErrorMsg('Please enter your student email.');
       return;
     }
-    if (!password.trim()) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMsg('Please enter a valid email format (e.g. student@dorm.ph).');
+      return;
+    }
+    if (!password) {
       setErrorMsg('Please enter your password.');
       return;
     }
+
     setErrorMsg('');
-    await login(email, password);
+    setIsLoggingIn(true);
+    const result = await login(cleanEmail, password);
+    setIsLoggingIn(false);
+
+    if (result && !result.success) {
+      setErrorMsg(result.error || 'Invalid email or password. Please try again.');
+    }
   };
 
   const handleDemoLogin = async () => {
+    setErrorMsg('');
+    setIsLoggingIn(true);
     setEmail('student@dorm.ph');
     setPassword('student123');
-    await login('student@dorm.ph', 'student123');
+    const result = await login('student@dorm.ph', 'student123');
+    setIsLoggingIn(false);
+
+    if (result && !result.success) {
+      setErrorMsg(result.error || 'Demo login failed.');
+    }
   };
 
   return (
@@ -122,11 +144,14 @@ export const LoginScreen = ({ onNavigateSignup }) => {
 
             {/* Login Button */}
             <TouchableOpacity
-              style={styles.loginBtn}
+              style={[styles.loginBtn, isLoggingIn && { opacity: 0.7 }]}
               onPress={handleLogin}
+              disabled={isLoggingIn}
               activeOpacity={0.85}
             >
-              <Text style={styles.loginBtnText}>Log In</Text>
+              <Text style={styles.loginBtnText}>
+                {isLoggingIn ? 'Logging in...' : 'Log In'}
+              </Text>
             </TouchableOpacity>
 
             {/* Demo Quick Button for Instructor / Tester */}
@@ -177,6 +202,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: '#FAFAF9',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0,
   },
   scrollBody: {
     flex: 1,

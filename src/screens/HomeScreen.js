@@ -50,7 +50,8 @@ export const HomeScreen = ({ onSelectRecipe, onNavigateTab }) => {
             placeholderTextColor="#94A3B8"
             value={search}
             onChangeText={setSearch}
-            onSubmitEditing={() => onNavigateTab('recipes')}
+            onSubmitEditing={() => onNavigateTab('recipes', search)}
+            returnKeyType="search"
           />
         </View>
         <TouchableOpacity

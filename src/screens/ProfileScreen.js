@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,16 @@ export const ProfileScreen = ({ onOpenAbout, onPromptLogin }) => {
   const { user, isGuest, logout, updateProfile } = useAuth();
 
   const [dailyBudget, setDailyBudget] = useState(user?.dailyBudget || 70);
-  const [defaultCookware, setDefaultCookware] = useState('1 burner');
+  const [defaultCookware, setDefaultCookware] = useState(
+    user?.defaultCookware || '1 burner'
+  );
+
+  useEffect(() => {
+    if (user) {
+      if (user.dailyBudget) setDailyBudget(user.dailyBudget);
+      if (user.defaultCookware) setDefaultCookware(user.defaultCookware);
+    }
+  }, [user]);
 
   const COOKWARE_OPTIONS = ['1 burner', 'Rice cooker', '1 pot / pan', 'Induction stove'];
 
@@ -21,6 +30,9 @@ export const ProfileScreen = ({ onOpenAbout, onPromptLogin }) => {
     const idx = COOKWARE_OPTIONS.indexOf(defaultCookware);
     const next = COOKWARE_OPTIONS[(idx + 1) % COOKWARE_OPTIONS.length];
     setDefaultCookware(next);
+    if (user) {
+      updateProfile({ defaultCookware: next });
+    }
   };
 
   const handleAdjustBudget = (delta) => {
@@ -157,7 +169,7 @@ export const ProfileScreen = ({ onOpenAbout, onPromptLogin }) => {
 
           <View style={styles.statBox}>
             <Text style={styles.statIcon}>🔥</Text>
-            <Text style={styles.statNumber}>5</Text>
+            <Text style={styles.statNumber}>{user?.mealsCookedCount ?? 5}</Text>
             <Text style={styles.statLabel}>Meals You Made</Text>
           </View>
 

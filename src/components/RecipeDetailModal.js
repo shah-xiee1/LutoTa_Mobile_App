@@ -9,8 +9,11 @@ import {
   SafeAreaView,
   Image,
   Share,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 
 export const RecipeDetailModal = ({
   visible,
@@ -21,6 +24,7 @@ export const RecipeDetailModal = ({
   if (!recipe) return null;
 
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { recordMealCooked } = useAuth();
   const favorited = isFavorite(recipe.id);
 
   // Checked state for ingredients
@@ -32,6 +36,14 @@ export const RecipeDetailModal = ({
       ...prev,
       [idx]: !prev[idx],
     }));
+  };
+
+  const handleToggleCooked = async () => {
+    const nextMode = !cookingMode;
+    setCookingMode(nextMode);
+    if (nextMode && recordMealCooked) {
+      await recordMealCooked();
+    }
   };
 
   const handleShare = async () => {
@@ -210,7 +222,7 @@ export const RecipeDetailModal = ({
               styles.startCookingBtn,
               cookingMode && styles.startCookingBtnDone,
             ]}
-            onPress={() => setCookingMode(!cookingMode)}
+            onPress={handleToggleCooked}
             activeOpacity={0.85}
           >
             <Text style={styles.startCookingBtnText}>
@@ -227,6 +239,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: '#FAFAF9',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0,
   },
   topBar: {
     flexDirection: 'row',
@@ -457,6 +470,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
+    paddingBottom: Platform.OS === 'android' ? 36 : 16,
     backgroundColor: 'rgba(250, 250, 249, 0.95)',
     borderTopWidth: 1,
     borderTopColor: '#E7E5E4',

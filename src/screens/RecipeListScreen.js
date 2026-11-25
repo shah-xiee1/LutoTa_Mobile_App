@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,20 @@ import {
 import { RECIPES } from '../data/recipes';
 import { useFavorites } from '../context/FavoritesContext';
 
-export const RecipeListScreen = ({ onSelectRecipe, userPantry = [] }) => {
+export const RecipeListScreen = ({
+  onSelectRecipe,
+  userPantry = [],
+  initialSearch = '',
+  onClearSearch,
+  onOpenTips,
+}) => {
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [searchFilter, setSearchFilter] = useState(initialSearch);
   const { isFavorite, toggleFavorite } = useFavorites();
+
+  useEffect(() => {
+    setSearchFilter(initialSearch);
+  }, [initialSearch]);
 
   const FILTERS = [
     { id: 'ALL', label: 'All Meals' },
@@ -40,6 +51,16 @@ export const RecipeListScreen = ({ onSelectRecipe, userPantry = [] }) => {
   const filteredRecipes = useMemo(() => {
     let list = [...recipesWithScores];
 
+    if (searchFilter.trim()) {
+      const q = searchFilter.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          r.englishName.toLowerCase().includes(q) ||
+          r.ingredients.some((ing) => ing.name.toLowerCase().includes(q))
+      );
+    }
+
     if (activeFilter === 'UNDER_60') {
       list = list.filter((r) => r.totalCost <= 60);
     } else if (activeFilter === 'UNDER_30M') {
@@ -56,7 +77,12 @@ export const RecipeListScreen = ({ onSelectRecipe, userPantry = [] }) => {
     }
 
     return list;
-  }, [recipesWithScores, activeFilter, userPantry]);
+  }, [recipesWithScores, activeFilter, userPantry, searchFilter]);
+
+  const handleClearSearch = () => {
+    setSearchFilter('');
+    if (onClearSearch) onClearSearch();
+  };
 
   return (
     <ScrollView
@@ -70,7 +96,11 @@ export const RecipeListScreen = ({ onSelectRecipe, userPantry = [] }) => {
           <Text style={styles.potIcon}>🍲</Text>
           <Text style={styles.brandTitle}>LutoTa</Text>
         </View>
-        <TouchableOpacity style={styles.bellBtn}>
+        <TouchableOpacity
+          style={styles.bellBtn}
+          onPress={onOpenTips}
+          activeOpacity={0.7}
+        >
           <Text style={styles.bellIcon}>🔔</Text>
         </TouchableOpacity>
       </View>
@@ -84,6 +114,18 @@ export const RecipeListScreen = ({ onSelectRecipe, userPantry = [] }) => {
             : 'budget-friendly meals for students'}
         </Text>
       </View>
+
+      {/* Active Search Filter Badge if search came from Home */}
+      {searchFilter ? (
+        <View style={styles.searchActiveRow}>
+          <Text style={styles.searchActiveText}>
+            Filtering by: <Text style={{ fontWeight: '800' }}>"{searchFilter}"</Text>
+          </Text>
+          <TouchableOpacity onPress={handleClearSearch} style={styles.clearSearchBtn}>
+            <Text style={styles.clearSearchBtnText}>Clear ✕</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {/* Filter Chips Bar */}
       <ScrollView
@@ -157,6 +199,24 @@ export const RecipeListScreen = ({ onSelectRecipe, userPantry = [] }) => {
             </TouchableOpacity>
           );
         })}
+
+        {filteredRecipes.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Text style={styles.emptyTitle}>No matching recipes found</Text>
+            <Text style={styles.emptySubtitle}>
+              Try adjusting your filter or clearing your search.
+            </Text>
+            {searchFilter ? (
+              <TouchableOpacity
+                style={styles.resetFilterBtn}
+                onPress={handleClearSearch}
+              >
+                <Text style={styles.resetFilterBtnText}>Clear Search Filter</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
       </View>
 
       {/* Dorm Tip Bottom Banner matching Figma */}
@@ -315,6 +375,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9A3412',
     textAlign: 'center',
+  },
+  searchActiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  searchActiveText: {
+    fontSize: 12,
+    color: '#9A3412',
+  },
+  clearSearchBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#FED7AA',
+  },
+  clearSearchBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9A3412',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E7E5E4',
+  },
+  emptyEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1C1917',
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: '#78716C',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  resetFilterBtn: {
+    marginTop: 12,
+    backgroundColor: '#FF6B00',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  resetFilterBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });
 
